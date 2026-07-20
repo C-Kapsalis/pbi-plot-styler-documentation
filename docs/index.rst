@@ -1,10 +1,14 @@
 pbi-plot-styler
 ================
 
-.. Fill in: one paragraph, the field-parameter template plus the CLI that
-   keeps every combo-chart visual's per-measure styling in sync with it.
-   Port from pbi-plot-styler-docs (currently just three files, thin by
-   comparison with the other three tools).
+A reporting template for Power BI that scales by declaration, and the
+CLI that keeps it presentation-ready. Three field-parameter tables
+declared in the semantic model let one combo-chart page replace a
+growing stack of near-identical pages; ``pbi-plot-styler`` is the one
+piece those tables cannot reach themselves, the per-measure visual
+styling stored inside each visual's ``visual.json``. Run it after every
+model change and every chart it targets stays on-brand, deterministically
+and idempotently.
 
 .. toctree::
    :maxdepth: 1
