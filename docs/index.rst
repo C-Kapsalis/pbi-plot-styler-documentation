@@ -1,20 +1,43 @@
 pbi-plot-styler
 ================
 
-A reporting template for Power BI that scales by declaration, and the
-CLI that keeps it presentation-ready. Three field-parameter tables
-declared in the semantic model let one combo-chart page replace a
-growing stack of near-identical pages; ``pbi-plot-styler`` is the one
-piece those tables cannot reach themselves, the per-measure visual
-styling stored inside each visual's ``visual.json``. Run it after every
-model change and every chart it targets stays on-brand, deterministically
-and idempotently.
+The hassle this replaces
+-----------------------------
+
+Before this tool, giving a chart's line a consistent color meant
+opening Power BI Desktop, selecting the line and clustered column
+chart, and setting the line's color and its data labels by hand in the
+visual's own formatting pane, one measure at a time. Power BI's own
+best practice for a scaling report is to drive that chart from field
+parameters instead of hand-picking a fixed measure, so the same chart
+can plot any measure a viewer selects. That is exactly what makes the
+manual approach fall apart: every measure the field parameter can show
+needs its own color and label setting, by hand, and every new measure
+added to the parameter is one more chart to reopen and reformat.
+
+The `BI-report-template-site
+<https://github.com/C-Kapsalis/BI-report-template-site>`_ pattern this
+tool assumes is a line and clustered column chart plus a matrix, both
+driven by field parameters. Change which measure the line plots, and
+without this tool, the new measure renders in whatever color Power BI
+defaults to, its data label sitting on no background at all, or on
+whatever color a previous measure left behind, sometimes unreadable
+against the columns behind it.
+
+``pbi-plot-styler`` fixes this by declaration instead of by hand: it
+reads the measures a field-parameter table exposes and rewrites the
+line's fill color and its data labels, text color and background,
+consistently for every one of them, in one command. Run it again after
+the model changes and it repairs itself: a renamed or removed measure's
+stale styling is dropped, a new measure is added, and re-running a
+report that is already styled is a no-op.
+
+Only three things are stylable: the line's color, the data-label text
+color, and the data-label background. Everything else about the visual
+is left untouched.
 
 .. toctree::
    :maxdepth: 1
 
    tutorials/getting-started
-   how-to/enforce-styling-in-ci
-   how-to/set-a-brand-palette
    reference/cli
-   explanation/field-parameter-reporting
