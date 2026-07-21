@@ -17,8 +17,12 @@ gateway or a live connection.
 1. Install
 -------------
 
+Clone the repository, then install the package from inside it:
+
 ::
 
+    git clone https://github.com/c-kapsalis/pbi-plot-styler.git
+    cd pbi-plot-styler
     pip install .
 
 Confirm it is on the path:
