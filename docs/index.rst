@@ -32,9 +32,20 @@ the model changes and it repairs itself: a renamed or removed measure's
 stale styling is dropped, a new measure is added, and re-running a
 report that is already styled is a no-op.
 
-Only three things are stylable: the line's color, the data-label text
-color, and the data-label background. Everything else about the visual
-is left untouched.
+Only three things are stylable: the series color (a hex color, a
+per-measure pin, or a theme color), the data-label text color, and the
+data-label background. Everything else about the visual is left
+untouched, including formatting set by hand: the styler owns only its
+own per-measure entries.
+
+The same command line also checks a report: ``pbi-plot-styler check``
+reports, with stable ids, field bindings that no longer resolve in the
+model, bookmarks the service would reject on import or that point at
+missing pages and visuals, inconsistent field-parameter slots, and
+missing theme files. It is read-only, can repair the two bookmark
+problems it is able to prove safe, and supports a baseline so a team can
+adopt it on a report that already has findings. Both commands accept a
+single report or a folder of reports.
 
 .. toctree::
    :maxdepth: 1

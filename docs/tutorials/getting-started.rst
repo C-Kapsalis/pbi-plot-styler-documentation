@@ -128,8 +128,43 @@ operation is idempotent. Switch which measure is plotted on the line,
 or add a new one to the field parameter, and re-running repairs it,
 no diffing or manual rework needed.
 
+Formatting you set by hand in Power BI Desktop survives these runs: the
+styler rewrites only the per-measure color and label-background entries
+it owns, and keeps the column baseline, per-legend-value settings, the
+columns' own entries, and any extra property you tuned.
+
+5. Check the report
+-----------------------
+
+Styling is one half of keeping a report healthy; the other is catching
+the breakages Power BI only reveals at import or render time, such as a
+visual still bound to a renamed measure or a bookmark pointing at a
+deleted page. ``check`` is read-only:
+
+::
+
+    pbi-plot-styler check Roastery.Report
+
+::
+
+    Checked 1 report(s): 0 error(s), 0 warning(s).
+
+It exits ``0`` here. Each problem it finds is one line with a stable id
+(``BND001`` for an unresolved field, ``BMK001`` for a bookmark option
+the service rejects on import, and so on), and the run exits ``1``, so
+it works as a CI gate next to ``--dry-run``.
+
+Both commands also accept a folder that holds several reports, at any
+depth; each report is handled against its own model:
+
+::
+
+    pbi-plot-styler check ..
+
 Where to next
 -----------------
 
-- Every flag and config key, including ``--rename-table`` and
-  ``--exclude-role``: :doc:`../reference/cli`.
+- Every flag and config key, including ``--exclude-role``, color pins
+  and theme colors: :doc:`../reference/cli`.
+- Every ``check`` id, ``--fix``, and baselines:
+  :doc:`../reference/cli`, section *check*.
