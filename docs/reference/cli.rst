@@ -115,6 +115,10 @@ run cannot pair with a model prints one line per combo visual —
 — and those visuals count in the total. ``--zip`` adds a final ``Wrote
 <path>`` line.
 
+A ``visual.json`` that does not parse is reported on stderr as
+``ERROR reading <path>: <error>`` and left alone. A write run then exits
+``2``; a dry run counts it as pending and exits ``1``.
+
 Every page, every time
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -565,14 +569,15 @@ Style exit codes
    * - ``2``
      - Error: bad invocation, invalid config value, a path that does not
        exist (``ERROR: <absolute path> does not exist``), a
-       ``visual.json`` that does not parse (``ERROR reading <path>:
-       <error>``), missing report or model folder, unresolvable
-       ``definition.pbir``, no ``*.Report`` folder found, no
-       field-parameter tables found, no measures resolved, no visual of a
-       targeted type found, a color pin that matches no measure, an
-       unknown config section/key, an unmatched ``--rename-table`` source
-       name, a malformed ``OLD=NEW`` or ``KEY=HEX`` pair, or a rebuild
-       that would alter a preserved entry.
+       ``visual.json`` that does not parse in a write run
+       (``ERROR reading <path>: <error>``), missing report or model
+       folder, unresolvable ``definition.pbir``, no ``*.Report`` folder
+       found, no field-parameter tables found, no measures resolved, no
+       visual of a targeted type found, a color pin that matches no
+       measure, an unknown config section/key, an unmatched
+       ``--rename-table`` source name, a malformed ``OLD=NEW`` or
+       ``KEY=HEX`` pair, or a rebuild that would alter a preserved
+       entry.
 
 check
 -----
