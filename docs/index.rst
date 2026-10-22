@@ -1,8 +1,10 @@
 pbi-plot-styler
-================
+===============
+
+These pages document ``pbi-plot-styler`` 1.2.1.
 
 The hassle this replaces
------------------------------
+------------------------
 
 Before this tool, giving a chart's line a consistent color meant
 opening Power BI Desktop, selecting the line and clustered column
@@ -32,24 +34,26 @@ the model changes and it repairs itself: a renamed or removed measure's
 stale styling is dropped, a new measure is added, and re-running a
 report that is already styled is a no-op.
 
-Only three things are stylable: the series color (a hex color, a
-per-measure pin, or a theme color), the data-label text color, and the
-data-label background. Everything else about the visual is left
-untouched, including formatting set by hand: the styler owns only its
-own per-measure entries.
+The styler sets only the series color (a hex color, a per-measure pin,
+or a theme color), the data labels (shown or hidden, and their text
+color), and the data-label background and its transparency. Everything
+else about the visual is left untouched, including formatting set by
+hand: the styler owns only its own per-measure entries.
 
 The same command line also checks a report: ``pbi-plot-styler check``
 reports, with stable ids, field bindings that no longer resolve in the
 model, bookmarks the service would reject on import or that point at
 missing pages and visuals, inconsistent field-parameter slots, and
-missing theme files. It is read-only, can repair the two bookmark
-problems it is able to prove safe, and supports a baseline so a team can
-adopt it on a report that already has findings. The same command runs
-the conventions of the standard canvas page — the slicer gates, the
-analysis category, the theme, the visual positions, the y-combo groups,
-the filter panel, the format selector, the stale placeholders and the
-answer bookmarks — one rule at a time, with ``--rule``. Both commands
-accept a single report or a folder of reports.
+missing theme files. It is read-only unless you add ``--fix``, which
+repairs the two bookmark problems it can prove safe, and it supports a
+baseline so a team can adopt it on a report that already has findings. With ``--rule``, the
+same command checks the conventions of the standard canvas page, one
+rule at a time: the slicer gates, the analysis category, the theme, the
+visual positions, the y-combo groups, the filter panel, the format
+selector, the stale placeholders, the answer bookmarks and the bookmark
+literals. Several of these rules have fixers of their own.
+``--summary`` scores four of them in one compliance report. Both
+commands accept a single report or a folder of reports.
 
 Four more commands keep a report in step with its model:
 ``pbi-plot-styler colors sync`` re-stamps the series colors from the
@@ -60,8 +64,13 @@ visual and bookmark of a report, and ``pbi-plot-styler rename-label``
 renames a field-parameter row label in the model and in every report
 that remembers it.
 
+New to the tool? Start with :doc:`tutorials/getting-started`, which
+styles and checks the example report that ships with the tool.
+
 .. toctree::
    :maxdepth: 1
 
    tutorials/getting-started
    reference/cli
+   reference/convention-rules
+   reference/known-issues
