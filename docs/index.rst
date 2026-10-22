@@ -44,8 +44,21 @@ model, bookmarks the service would reject on import or that point at
 missing pages and visuals, inconsistent field-parameter slots, and
 missing theme files. It is read-only, can repair the two bookmark
 problems it is able to prove safe, and supports a baseline so a team can
-adopt it on a report that already has findings. Both commands accept a
-single report or a folder of reports.
+adopt it on a report that already has findings. The same command runs
+the conventions of the standard canvas page — the slicer gates, the
+analysis category, the theme, the visual positions, the y-combo groups,
+the filter panel, the format selector, the stale placeholders and the
+answer bookmarks — one rule at a time, with ``--rule``. Both commands
+accept a single report or a folder of reports.
+
+Four more commands keep a report in step with its model:
+``pbi-plot-styler colors sync`` re-stamps the series colors from the
+palette measure the model declares, ``pbi-plot-styler bookmarks build``
+renders the answer bookmarks from a base bookmark that is already known
+to work, ``pbi-plot-styler rename-measure`` renames a measure in every
+visual and bookmark of a report, and ``pbi-plot-styler rename-label``
+renames a field-parameter row label in the model and in every report
+that remembers it.
 
 .. toctree::
    :maxdepth: 1

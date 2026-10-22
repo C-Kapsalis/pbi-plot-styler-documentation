@@ -31,6 +31,10 @@ Confirm it is on the path:
 
     pbi-plot-styler --version
 
+::
+
+    pbi-plot-styler, version 1.2.0
+
 2. See what would change
 -----------------------------
 
@@ -42,21 +46,19 @@ From the ``examples/coffee-roastery`` folder:
 
 ::
 
-    Model:    .../Roastery.SemanticModel
-    Measures: 6 drive the styling
+      5dd25eb672a72da45096: WOULD CHANGE
+        columns-role measure(s) kept OUT of the line set: Sales Measures.Revenue
+        objects.dataPoint[]: 0 -> 5 entries
+        objects.labels[]: 0 -> 6 entries
 
-    --- definition/pages/a1f935c9ad3918c55c49/visuals/5dd25eb672a72da45096/visual.json
-    +++ definition/pages/a1f935c9ad3918c55c49/visuals/5dd25eb672a72da45096/visual.json (styled)
-    @@ ... @@
-    +    "objects": {
-    +      "dataPoint": [ ... one entry per measure ... ],
-    +      "labels": [ ... ]
-    +    }
+    Models resolved: 1
+    1/1 combo chart(s) need rebuild (re-run without --dry-run).
 
-    1/1 visual(s) would change.
-
-Nothing is written yet; ``--dry-run`` exits ``1`` to signal drift,
-which doubles as a CI gate.
+The block names the visual that would change, the measure the columns
+role currently holds (which the tool leaves out of the line set), and
+how many entries the two owned arrays would grow. Nothing is written
+yet; ``--dry-run`` exits ``1`` to signal drift, which doubles as a CI
+gate.
 
 3. The setup: two field parameters sharing a measure catalog
 ------------------------------------------------------------------
@@ -105,11 +107,10 @@ columns' current pick never inherits the line's green.
 
 ::
 
-    Model:    .../Roastery.SemanticModel
-    Measures: 6 drive the styling
-      styled definition/pages/a1f935c9ad3918c55c49/visuals/5dd25eb672a72da45096/visual.json
+      5dd25eb672a72da45096: dataPoint 0 -> 5, labels 0 -> 6 (5 line measures each; 1 columns-role measure(s) excluded; 1 bar-side entry preserved)
 
-    Restyled 1/1 visual(s); 0 already styled.
+    Models resolved: 1
+    rebuilt 1/1 combo chart(s).
 
 Open the report in Power BI Desktop: every measure reachable through
 ``x-Plot Specific 2`` renders with a green line and a white-on-green
@@ -123,7 +124,7 @@ is untouched, in Power BI's own default styling.
    Bags Sold #, on the line, gets the consistent green fill and label
    background, whichever measure is currently selected on either axis.
 
-Run the command again and it reports ``Restyled 0/1 visual(s)``; the
+Run the command again and it reports ``rebuilt 0/1 combo chart(s)``; the
 operation is idempotent. Switch which measure is plotted on the line,
 or add a new one to the field parameter, and re-running repairs it,
 no diffing or manual rework needed.
@@ -154,6 +155,37 @@ It exits ``0`` here. Each problem it finds is one line with a stable id
 the service rejects on import, and so on), and the run exits ``1``, so
 it works as a CI gate next to ``--dry-run``.
 
+Those are the ``integrity`` checks. The same command also runs the
+conventions of the standard canvas page, one rule at a time:
+
+::
+
+    pbi-plot-styler check Roastery.Report --rule theme
+
+::
+
+    WARNING  THM003  Roastery.Report/definition/report.json: No custom theme defined - may use hardcoded colors (Expected: customTheme configuration, Got: null or missing)
+    ERROR    THM006  Roastery.Report/definition/report.json: Theme collection is incomplete - missing: customTheme. Reports must declare both baseTheme and customTheme.
+    ✅ Rule #6 Validation Results:
+       Components checked: 1
+       Components passed: 0
+       Compliant: False
+
+       Violations found:
+       ⚠️ report: No custom theme defined - may use hardcoded colors
+       🔴 report: Theme collection is incomplete - missing: baseTheme, customTheme. Reports must declare both baseTheme and customTheme.
+    Rule #6 critical violations found:
+      - customTheme: Theme collection is incomplete - missing: customTheme. Reports must declare both baseTheme and customTheme.
+
+    Checked 1 report(s): 1 error(s), 1 warning(s).
+
+The names the rules look for — the gate measure, the category table, the
+theme table — come from the canvas sections of ``plotstyler.toml``, and
+from the built-in defaults when the file does not set them. This run
+finds two findings on the example: no custom theme, and a theme
+collection that names one that is not there. It exits ``1``. The twelve
+rule slugs are listed in the reference.
+
 Both commands also accept a folder that holds several reports, at any
 depth; each report is handled against its own model:
 
@@ -166,5 +198,8 @@ Where to next
 
 - Every flag and config key, including ``--exclude-role``, color pins
   and theme colors: :doc:`../reference/cli`.
-- Every ``check`` id, ``--fix``, and baselines:
-  :doc:`../reference/cli`, section *check*.
+- Every ``check`` id, the twelve convention rules, ``--fix``, and
+  baselines: :doc:`../reference/cli`, section *check*.
+- The four commands that keep a report in step with its model:
+  ``colors sync``, ``bookmarks build``, ``rename-measure`` and
+  ``rename-label``: :doc:`../reference/cli`.
