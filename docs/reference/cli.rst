@@ -21,8 +21,9 @@ CLI reference
   are the same command. See `style`_.
 - ``check`` is a read-only integrity gate: it reports broken bindings,
   bookmarks that cannot be imported or that dangle, inconsistent
-  field-parameter slots, and missing theme files, and — when a rule is
-  named — the conventions of the standard canvas page. See `check`_.
+  field-parameter slots, and missing theme files. With ``--rule`` it
+  checks the conventions of the standard canvas page instead. See
+  `check`_ and :doc:`convention-rules`.
 - ``colors sync`` and ``colors reset`` keep a report's series colors in
   step with the palette measure the model declares. See `colors`_.
 - ``bookmarks build`` renders one answer bookmark per entry of a JSON
@@ -38,8 +39,41 @@ A report folder literally named like a command must be passed as
 ``colors``, ``bookmarks``, ``rename-measure`` and ``rename-label`` all
 take that name.
 
-Every command writes only inside the folders it is given, except
-``--zip``, which writes the archive you name.
+Where each command writes:
+
+- ``style`` and ``check --fix`` write inside the report folders they are
+  given; ``style --zip`` also writes the archive you name.
+- ``colors`` and ``bookmarks build`` write inside the ``--report``
+  folder.
+- ``rename-measure`` writes in every ``*.Report`` folder below the
+  parent folder of ``--model``.
+- ``rename-label`` writes in the models and reports under
+  ``CLIENT_DIR``.
+
+When each command writes:
+
+- ``colors`` and ``rename-label`` are dry runs unless ``--apply`` is
+  given.
+- ``check`` writes only with ``--fix``, and never with ``--fix
+  --dry-run``.
+- ``style``, ``rename-measure`` and ``bookmarks build`` write unless
+  ``--dry-run`` is given.
+
+Every example on this page runs unchanged in bash and in PowerShell,
+unless a separate PowerShell form is shown. Paths may use ``/`` in both
+shells. Quote any argument that contains a space or a ``#``.
+
+``--version`` belongs to the top-level command, not to ``style``:
+
+::
+
+    pbi-plot-styler --version
+
+::
+
+    pbi-plot-styler, version 1.2.1
+
+The top level and every command take ``-h`` / ``--help``.
 
 style
 -----
@@ -59,7 +93,8 @@ Argument
        ``definition.pbir`` and ``definition/pages/``), or any folder
        that contains one or more of them at any depth, or a page folder
        or a ``visual.json`` inside a report (only the visuals under it
-       are restyled).
+       are restyled). In 1.2.1 a page folder or a ``visual.json`` must
+       be given as an absolute path; see `Styling one page`_.
 
 When ``REPORT_DIR`` is a folder of reports, every ``*.Report`` folder
 under it is found recursively and styled against its own paired model
@@ -68,19 +103,53 @@ under it is found recursively and styled against its own paired model
 ``check`` says so on stderr, ``style`` says nothing.
 
 If the report folder's name begins with a dash (``-Sales.Report``), the
-shell and option parser read it as a flag. Prefix it with ``./``, or end
-option parsing with ``--``:
+option parser reads it as a flag. Prefix it with ``./``, or end option
+parsing with ``--``:
 
 ::
 
     pbi-plot-styler "./-Sales.Report"
     pbi-plot-styler --dry-run -- "-Sales.Report"
 
+Both forms work in bash and in PowerShell 7.
+
+Styling one page
+~~~~~~~~~~~~~~~~
+
+To restyle only the visuals of one page, or one visual, pass the page
+folder or the ``visual.json`` instead of the report. In 1.2.1 the path
+must be absolute: a relative page path finds no visual and the run
+exits ``2`` with ``no targeted visuals found`` (see
+:doc:`known-issues`). Let the shell make the path absolute.
+
+bash:
+
+::
+
+    pbi-plot-styler "$PWD/Roastery.Report/definition/pages/a1f935c9ad3918c55c49" --dry-run
+
+PowerShell:
+
+::
+
+    pbi-plot-styler (Resolve-Path Roastery.Report/definition/pages/a1f935c9ad3918c55c49).Path --dry-run
+
+Run from the repository's ``examples/coffee-roastery`` folder, both
+print the same block and closing line as a dry run of the whole report,
+because that page holds the report's only combo chart.
+
 What the run prints
 ~~~~~~~~~~~~~~~~~~~
 
+The examples in this section run from the repository's
+``examples/coffee-roastery`` folder, which holds a ``plotstyler.toml``.
+
 A write run prints one line per visual it wrote, then a blank line, the
 number of models the run resolved, and the count of the combo charts:
+
+::
+
+    pbi-plot-styler Roastery.Report
 
 ::
 
@@ -89,8 +158,16 @@ number of models the run resolved, and the count of the combo charts:
     Models resolved: 1
     rebuilt 1/1 combo chart(s).
 
+The counts in brackets are the measures styled on that visual, the
+measures left out through an excluded role (``--exclude-role``), and
+the existing column-side entries kept as they were.
+
 A dry run prints a block per visual that would change, instead of a
 diff:
+
+::
+
+    pbi-plot-styler Roastery.Report --dry-run
 
 ::
 
@@ -102,35 +179,62 @@ diff:
     Models resolved: 1
     1/1 combo chart(s) need rebuild (re-run without --dry-run).
 
+The ``columns-role`` line names the measures bound to the column role
+(``Y``) and any excluded measures. In 1.2.1 it is printed even when no
+role is excluded, and then the measure it names is styled after all;
+read the ``dataPoint`` count, or the write run's ``excluded`` count, to
+see what happens (see :doc:`known-issues`).
+
+When the field-parameter tables come from detection (no ``--table`` and
+no ``[tables] field_parameters``), the run first prints one
+``Field parameters:`` line; see `Field parameter detection`_.
+
 The closing line is ``rebuilt <written>/<total> combo chart(s).`` after a
 write, ``<pending>/<total> combo chart(s) need rebuild (re-run without
 --dry-run).`` after a dry run that found drift, and ``All <total> combo
-chart(s) already in sync.`` after a dry run that found none. A report the
-run cannot pair with a model prints one line per combo visual —
+chart(s) already in sync.`` after a dry run that found none. When some
+visuals were skipped, ``(<n> skipped)`` follows the count. A report the
+run cannot pair with a model prints one line per combo visual:
 
 ::
 
       5dd25eb672a72da45096: SKIPPED - no paired SemanticModel (missing definition.pbir / no x-Selector measures)
 
-— and those visuals count in the total. ``--zip`` adds a final ``Wrote
+Those visuals count in the total:
+
+::
+
+    Models resolved: 0
+    All 1 combo chart(s) already in sync (1 skipped).
+
+In 1.2.1 such a run exits ``0``, even for a single report or with
+``--model`` (see :doc:`known-issues`). ``--zip`` adds a final ``Wrote
 <path>`` line.
 
 A ``visual.json`` that does not parse is reported on stderr as
-``ERROR reading <path>: <error>`` and left alone. A write run then exits
-``2``; a dry run counts it as pending and exits ``1``.
+``ERROR reading <path>: <error>`` and left alone; it counts as skipped:
+
+::
+
+      ERROR reading Bad.Report/definition/pages/a1f935c9ad3918c55c49/visuals/5dd25eb672a72da45096/visual.json: Expecting property name enclosed in double quotes: line 2 column 1 (char 2)
+
+    Models resolved: 1
+    rebuilt 0/1 combo chart(s) (1 skipped).
+
+A write run then exits ``2``; a dry run prints ``0/1 combo chart(s) need
+rebuild (1 skipped) (re-run without --dry-run).`` and exits ``1``.
 
 Every page, every time
 ~~~~~~~~~~~~~~~~~~~~~~
 
-There is no flag to scope a run to one report page. When you name the
-report folder, every visual under ``definition/pages/**`` whose
-``visualType`` matches ``visual_types`` is checked and, if needed,
-restyled on every run, across the whole report. (You can name a page
-folder, or a ``visual.json``, instead of the report — see `Argument`_ —
-and then only the visuals under it are restyled.) This is deliberate: a
+When you name the report folder, every visual under
+``definition/pages/**`` whose ``visualType`` matches ``visual_types``
+is checked and, if needed, restyled on every run, across the whole
+report. There is no option to leave pages out. This is deliberate: a
 field-parameter table's measures can be plotted from any page, and a
 partially-styled report is exactly the drift this tool exists to
-prevent. To leave a specific visual out of scope entirely, give it a
+prevent. (To work on one page at a time, name the page folder instead
+of the report; see `Styling one page`_.) To leave a specific visual out of scope entirely, give it a
 ``visualType`` outside the configured set instead.
 
 Style options
@@ -161,14 +265,14 @@ Style options
        may be a shell-style pattern (``x-*``), matched against the
        model's tables case-insensitively. Passing the flag at least
        once replaces the whole set. To change just one of the detected
-       tables without respecifying the others, use ``--rename-table``
+       tables without listing the others again, use ``--rename-table``
        instead. See `Field parameter detection`_.
    * - ``--rename-table OLD=NEW``
      - repeatable
      - none
      - Renames a single table in the current list (the detected ones, or
        whatever ``--table``/config set), leaving the others in place.
-       ``OLD`` must match a name already present in that list; a typo'd
+       ``OLD`` must match a name already present in that list; a misspelled
        ``OLD`` fails with an error rather than silently doing nothing.
        Example: ``--rename-table "x-Plot Specific 2=Set Lines"`` if your
        project calls that table "Set Lines".
@@ -219,7 +323,8 @@ Style options
    * - ``--label-color HEX``
      - ``#RRGGBB``
      - ``#252423``
-     - Data-label text color, set in the no-selector labels entry. See
+     - Data-label text color, set in the no-selector labels entry. The
+       default only seeds a visual that has no labels entry yet. See
        `Explicit versus default settings`_.
    * - ``--label-background HEX``
      - ``#RRGGBB``
@@ -264,10 +369,6 @@ Style options
        archive (rooted at the folder name of ``REPORT_DIR``). Combined
        with ``--dry-run``, the archive contains the styled content while
        the source files stay untouched.
-   * - ``--version``
-     - flag
-     - not set
-     - Print version and exit.
    * - ``-h``, ``--help``
      - flag
      - not set
@@ -295,11 +396,16 @@ excluded roles work on the whole detected set, so a ``Y`` role bound
 through a parameter you did not configure still excludes that
 parameter's whole catalog.
 
-The run prints one line naming the tables it uses:
+The run prints one line naming the tables it uses. For the
+``coffee-roastery`` model, styled from a folder that holds no
+``plotstyler.toml``, the line reads:
 
 ::
 
     Field parameters: x-Plot Specific 1, x-Plot Specific 2, y-Plot Specific (dimension: y-Plot Specific; metric: x-Plot Specific 1, x-Plot Specific 2)
+
+A model with no dimension parameter prints an empty list
+(``dimension: ;``).
 
 An explicit ``--table`` (or a config list) restricts the expansion to
 that list, and no such line is printed.
@@ -527,8 +633,9 @@ formatting entries, such as a hand-picked column color, are kept
 verbatim. A measure projected on both the line and the columns counts as
 excluded. See the worked example in :doc:`../tutorials/getting-started`.
 
-A related, unfixable case: if the exact same measure is projected on
-*both* the column and the line role of one combo chart, Power BI only
+A related case the tool cannot fix: if the exact same measure is
+projected on *both* the column and the line role of one combo chart,
+Power BI only
 keeps one ``selector.metadata`` match per visual, so one of the two
 falls back to default rendering, and the PBIP schema offers no per-role
 disambiguation. Use a thin wrapper measure (``Revenue (Line) = [Revenue]``)
@@ -545,12 +652,18 @@ minimal GitHub Actions step:
 
     - name: Check report styling
       run: pbi-plot-styler "My Project.Report" --dry-run
+    - name: Check report integrity
+      run: pbi-plot-styler check "My Project.Report"
 
 Point ``--config`` at a committed ``plotstyler.toml`` if your colors are
 not the defaults, so the CI check and a local run agree. This turns a
 style guide into a gate: a pull request that adds or renames a measure
-in a field parameter table without re-running the styler fails until
+in a field-parameter table without re-running the styler fails until
 someone runs the one command.
+
+Keep the ``check`` step next to it: in 1.2.1 a dry run whose model
+cannot be loaded skips the report and exits ``0``, while ``check``
+reports that model as ``MDL001`` and fails.
 
 Style exit codes
 ~~~~~~~~~~~~~~~~
@@ -567,17 +680,22 @@ Style exit codes
      - ``--dry-run`` only: at least one visual is out of style (drift
        detected). Use as a CI gate.
    * - ``2``
-     - Error: bad invocation, invalid config value, a path that does not
-       exist (``ERROR: <absolute path> does not exist``), a
-       ``visual.json`` that does not parse in a write run
-       (``ERROR reading <path>: <error>``), missing report or model
-       folder, unresolvable ``definition.pbir``, no ``*.Report`` folder
-       found, no field-parameter tables found, no measures resolved, no
-       visual of a targeted type found, a color pin that matches no
-       measure, an unknown config section/key, an unmatched
-       ``--rename-table`` source name, a malformed ``OLD=NEW`` or
-       ``KEY=HEX`` pair, or a rebuild that would alter a preserved
-       entry.
+     - Error: bad invocation, invalid config value (for example a color
+       that is not ``#RRGGBB``), a path that does not exist
+       (``ERROR: <absolute path> does not exist``), a ``--model`` folder
+       that does not exist, a ``visual.json`` that does not parse in a
+       write run (``ERROR reading <path>: <error>``), no ``*.Report``
+       folder found, none of the configured field-parameter tables
+       found, no measures resolved, no visual of a targeted type found,
+       a color pin that matches no measure, an unknown config
+       section/key, an unmatched ``--rename-table`` source name,
+       ``label_transparency`` together with ``label_transparency_seed``,
+       a malformed ``OLD=NEW`` or ``KEY=HEX`` pair, or a rebuild that
+       would alter a preserved entry.
+
+A report whose model cannot be resolved or loaded is skipped, not an
+error, in 1.2.1: the run exits ``0`` (see `What the run prints`_ and
+:doc:`known-issues`).
 
 check
 -----
@@ -592,6 +710,18 @@ unless ``--fix`` is given. Without ``--rule``, ``check`` runs the
 ``integrity`` rule; with ``--rule SLUG`` it runs that convention rule
 instead. ``check`` reads the canvas sections of ``plotstyler.toml``
 (see `Config file`_).
+
+From the repository's ``examples/coffee-roastery`` folder:
+
+::
+
+    pbi-plot-styler check Roastery.Report
+
+::
+
+    Checked 1 report(s): 0 error(s), 0 warning(s).
+
+A clean run prints only the closing totals and exits ``0``.
 
 Check options
 ~~~~~~~~~~~~~
@@ -635,9 +765,13 @@ Check options
    * - ``--fix``
      - flag
      - off
-     - Run the fixers of the selected rules (``integrity``: ``BMK001``,
-       ``BMK002``), then check again. Fixers write only the files that
-       need a change.
+     - Run the fixers of the selected rules, then check again from disk;
+       the exit code comes from that re-check. ``integrity`` fixes
+       ``BMK001`` and ``BMK002``; ``slicer-gates``,
+       ``slicer-mode-gates``, ``filter-panel``, ``format-selector`` and
+       ``stale-placeholders`` have fixers too (see
+       :doc:`convention-rules`). Fixers write only the files that need a
+       change.
    * - ``--dry-run``
      - flag
      - off
@@ -647,9 +781,11 @@ Check options
    * - ``--summary``
      - flag
      - off
-     - Report compliance with the four foundation rules
-       (``slicer-gates``, ``category-filter``, ``theme``,
-       ``filter-panel``). Never fails.
+     - Run the four foundation rules (``slicer-gates``,
+       ``category-filter``, ``theme``, ``filter-panel``) and print a
+       compliance report after the findings. It replaces ``--rule``.
+       Never fails: it exits ``0`` whatever it finds (a setup problem
+       still exits ``2``). See `Compliance summary`_.
    * - ``--only-display-names FILE``
      - file
      - not set
@@ -663,7 +799,8 @@ Check options
      - flag
      - off
      - Write every current finding to the ``--baseline`` file and exit
-       ``0``.
+       ``0`` (``ABK000`` is never written, and the run exits ``1`` while
+       it occurs).
 
 A ``--report`` or ``--model-name`` filter that matches nothing exits
 ``2`` and names the filter. A sweep over a folder that holds no
@@ -681,7 +818,9 @@ Convention rules
 of them, in the order given, and every rule reports through the same
 machinery: stable ids, ``--json``, ``--baseline`` and
 ``--update-baseline``, and the same exit codes. A rule that cannot judge
-a report says so in a ``skipped`` list instead of passing silently.
+a report says so in a ``skipped`` line instead of passing silently. Each
+rule, its settings, its output and its fixer are described in
+:doc:`convention-rules`.
 
 .. list-table::
    :header-rows: 1
@@ -692,8 +831,9 @@ a report says so in a ``skipped`` list instead of passing silently.
    * - ``integrity``
      - Field bindings resolve in the paired model, bookmarks are
        importable and point at real pages and visuals, field-parameter
-       slots are consistent, theme files exist. The default.
-     - ``JSN001``, ``BND001``, ``BND002``, ``BMK001``-``BMK005``,
+       slots are consistent, theme files exist. The default. Fixable
+       (``BMK001``, ``BMK002``).
+     - ``JSN001``, ``BND001``, ``BND002``, ``BMK001`` to ``BMK005``,
        ``FPM001``, ``FPM002``, ``THM001``
    * - ``slicer-gates``
      - Every selector slicer on a visible canvas page carries an active
@@ -711,7 +851,7 @@ a report says so in a ``skipped`` list instead of passing silently.
    * - ``theme``
      - The report declares a theme collection, a base and a custom
        theme, and no hex color literals in ``report.json``.
-     - ``THM002``-``THM006``
+     - ``THM002`` to ``THM006``
    * - ``visual-position``
      - Every visual has an x and a y position.
      - ``POS001``
@@ -735,18 +875,116 @@ a report says so in a ``skipped`` list instead of passing silently.
      - The whole-page answer bookmarks capture the matrix, their own
        rows, the pinned analysis category, a place in the bookmarks
        menu, and the slot map of their picks.
-     - ``ABK000``, ``ABK001``, ``ABK003``-``ABK010``, ``PGW001``,
+     - ``ABK000``, ``ABK001``, ``ABK003`` to ``ABK010``, ``PGW001``,
        ``PGW002``, ``JSN001``
    * - ``bookmark-literals``
      - Every picker literal a bookmark captures is a row of the selector
        behind that picker.
      - ``BML001``, ``BML002``, ``JSN001``
 
-``check --summary`` runs four of them — ``slicer-gates``,
-``category-filter``, ``theme`` and ``filter-panel`` — and prints the
-compliance report: the rule number and name, the components checked and
-passed, the violations, and the overall percentage. It never fails; with
-``--json`` the same numbers arrive in a ``compliance`` object.
+Compliance summary
+~~~~~~~~~~~~~~~~~~
+
+``check --summary`` runs four of the rules (``slicer-gates``,
+``category-filter``, ``theme`` and ``filter-panel``), prints their
+findings, and then prints the compliance report: per rule, its number
+and name, ``PASS`` or ``FAIL``, the components checked and passed, and
+each finding with its type and a ``Fix`` hint; then the overall
+compliance, the number of rules passed, the score and the counts of
+critical issues and warnings. A rule passes when it has no error
+finding.
+
+``--summary`` never fails: it exits ``0`` whatever it finds. Only a
+setup problem (a missing path, for example) exits ``2``.
+
+Each row counts only some of its rule's ids. The theme row scores
+``THM002``, ``THM003`` and ``THM004``; ``THM005`` and ``THM006`` run
+only under ``--rule theme``. Since 1.2.1 the finding lines printed above
+the report, the closing ``Checked`` totals, and the ``findings`` and
+``summary`` of ``--json`` carry only the ids the rows count, so they
+agree with the score. A summary run with ``--baseline`` does not call
+the accepted entries of the other ids healed, and ``--update-baseline``
+keeps them.
+
+The repository's ``tests/fixtures/brewbar`` report declares a base
+theme but no custom one. From that folder, ``--rule theme`` finds two
+problems:
+
+::
+
+    pbi-plot-styler check Brewbar.Report --rule theme
+
+::
+
+    WARNING  THM003  Brewbar.Report/definition/report.json: No custom theme defined - may use hardcoded colors (Expected: customTheme configuration, Got: null or missing)
+    ERROR    THM006  Brewbar.Report/definition/report.json: Theme collection is incomplete - missing: customTheme. Reports must declare both baseTheme and customTheme.
+    ✅ Rule #6 Validation Results:
+       Components checked: 1
+       Components passed: 0
+       Compliant: False
+
+       Violations found:
+       ⚠️ report: No custom theme defined - may use hardcoded colors
+       🔴 report: Theme collection is incomplete - missing: baseTheme, customTheme. Reports must declare both baseTheme and customTheme.
+    Rule #6 critical violations found:
+      - customTheme: Theme collection is incomplete - missing: customTheme. Reports must declare both baseTheme and customTheme.
+
+    Checked 1 report(s): 1 error(s), 1 warning(s).
+
+The summary scores the theme row on ``THM003`` alone and does not list
+``THM006``:
+
+::
+
+    pbi-plot-styler check Brewbar.Report --summary
+
+::
+
+    skipped  Brewbar.Report: filter-panel: the report has no group containers
+    No Report field-parameter slicers found under <absolute path>/Brewbar.Report
+    ERROR    CAT001  Brewbar.Report/definition/bookmarks/bm02.bookmark.json: Page-level bookmark has no Analysis Category filter (Expected: a filter in byName or byExpr targeting z-Map Dimension-Measure Groupings[Analysis Category], Got: no such filter found)
+    WARNING  THM003  Brewbar.Report/definition/report.json: No custom theme defined - may use hardcoded colors (Expected: customTheme configuration, Got: null or missing)
+
+    🔍 Template Foundation Rules Comprehensive Report:
+    ============================================================
+    # Template Foundation Rules Validation Report
+
+    **Overall Compliance**: 75.0% (3/4 rules)
+    **Violations**: 1 critical, 1 warnings
+
+    ## Rule #1: Field Parameter f-Slicer Filters ✅ PASS
+    Components: 0/0 passed
+
+    ## Rule #3: Analysis Category Filter Required ❌ FAIL
+    Components: 0/1 passed
+
+    **🔴 missing_analysis_category** (Shops table)
+    - Page-level bookmark has no Analysis Category filter
+    - **Fix**: In Power BI Desktop, with this bookmark active, set the Analysis Category filter on the page (via the z-Map Dimension-Measure Groupings table), then UPDATE the bookmark so it captures that state.
+
+    ## Rule #6: ThemeDataColor Integration ✅ PASS
+    Components: 1/1 passed
+
+    **⚠️ missing_custom_theme** (report)
+    - No custom theme defined - may use hardcoded colors
+    - **Fix**: Define customTheme to avoid hardcoded color values
+
+    ## Rule #8: y_filters_group Master Container ✅ PASS
+    Components: 0/0 passed
+
+
+    📊 Summary:
+       Overall Compliance: False
+       Rules Passed: 3/4
+       Compliance Score: 75.0%
+       Critical Issues: 1
+       Warnings: 1
+
+    Checked 1 report(s): 1 error(s), 1 warning(s).
+
+It exits ``0`` although ``CAT001`` is an error. The second line names
+the report folder by its absolute path. With ``--json``, the same
+numbers arrive in a ``compliance`` object (see `JSON output`_).
 
 Checks
 ~~~~~~
@@ -962,35 +1200,35 @@ and the rule that emits it) with
 
 The eleven ids of the ``integrity`` rule, in prose:
 
-- ``JSN001`` — a report file (``report.json``, ``page.json``,
+- ``JSN001``: a report file (``report.json``, ``page.json``,
   ``visual.json``, a bookmark) is not valid JSON.
-- ``BND001`` — a field reference does not resolve in the paired model: a
-  ``Measure``, ``Column`` (including inside an ``Aggregation``) or
-  ``HierarchyLevel`` whose table, field, hierarchy or level does not
+- ``BND001``: a field reference does not resolve in the paired model.
+  It is a ``Measure``, ``Column`` (including inside an ``Aggregation``)
+  or ``HierarchyLevel`` whose table, field, hierarchy or level does not
   exist, or a ``From`` entity of a filter. ``SourceRef.Source``
   aliases are resolved through the enclosing ``From`` list.
-- ``BND002`` — a ``queryRef`` or ``selector.metadata`` string does not
+- ``BND002``: a ``queryRef`` or ``selector.metadata`` string does not
   resolve.
-- ``BMK001`` — a bookmark ``options`` key is outside the allowed set:
+- ``BMK001``: a bookmark ``options`` key is outside the allowed set:
   ``targetVisualNames``, ``applyOnlyToTargetVisuals``,
   ``suppressData``, ``suppressActiveSection``, ``suppressDisplay``.
   The file is valid JSON, but the service rejects the whole report on
   import. Fixable.
-- ``BMK002`` — a bookmark ``howCreated``, ``ComparisonKind`` or
+- ``BMK002``: a bookmark ``howCreated``, ``ComparisonKind`` or
   ``Version`` is a string, not a JSON integer. Fixable when the string
   is numeric.
-- ``BMK003`` — a bookmark's ``explorationState.activeSection``, or a key
+- ``BMK003``: a bookmark's ``explorationState.activeSection``, or a key
   of its ``sections``, names a page that does not exist.
-- ``BMK004`` — a key of ``sections.<page>.visualContainers`` (or
+- ``BMK004``: a key of ``sections.<page>.visualContainers`` (or
   ``visualContainerGroups``) is not a visual on that page.
-- ``BMK005`` — ``bookmarks.json`` lists a bookmark (top level or a
+- ``BMK005``: ``bookmarks.json`` lists a bookmark (top level or a
   group's ``children``) that has no ``.bookmark.json`` file.
-- ``FPM001`` — two field parameters of one query role claim the same
+- ``FPM001``: two field parameters of one query role claim the same
   slot (``queryState.<role>.fieldParameters[]`` ranges overlap); the
   later one wins, so the earlier one's picks never render.
-- ``FPM002`` — a field parameter's slot range (``index`` plus
+- ``FPM002``: a field parameter's slot range (``index`` plus
   ``length``) runs past the role's projections.
-- ``THM001`` — a ``report.json`` ``themeCollection`` entry has no item in
+- ``THM001``: a ``report.json`` ``themeCollection`` entry has no item in
   its resource package, or its file is missing under
   ``StaticResources``.
 
@@ -1009,6 +1247,76 @@ checks are skipped with a note and every other check still runs.
 
 Fixes
 ~~~~~
+
+This section describes the fixers of the ``integrity`` rule; the
+convention rules' fixers are described in :doc:`convention-rules`.
+
+The example below starts from a copy of the repository's
+``tests/fixtures/brewbar`` report in which the ``bm01`` bookmark was
+given an unknown ``options`` key and a ``howCreated`` stored as a
+string. ``check`` finds both:
+
+::
+
+    pbi-plot-styler check Brewbar.Report
+
+::
+
+    ERROR    BMK001  Brewbar.Report/definition/bookmarks/bm01.bookmark.json: options.applyToAllVisuals is not an allowed bookmark option; the service rejects the whole report on import
+    ERROR    BMK002  Brewbar.Report/definition/bookmarks/bm01.bookmark.json: howCreated is the string '1'; it must be a JSON integer
+
+    Checked 1 report(s): 2 error(s), 0 warning(s).
+
+Preview the fix with ``--fix --dry-run``. It prints what it would fix
+and a unified diff, writes nothing, and exits ``1``:
+
+::
+
+    pbi-plot-styler check Brewbar.Report --fix --dry-run
+
+::
+
+    would fix Brewbar.Report/definition/bookmarks/bm01.bookmark.json: removed options.applyToAllVisuals
+    would fix Brewbar.Report/definition/bookmarks/bm01.bookmark.json: converted 1 string integer(s)
+    --- a/Brewbar.Report/definition/bookmarks/bm01.bookmark.json
+    +++ b/Brewbar.Report/definition/bookmarks/bm01.bookmark.json
+    @@ -2,8 +2,7 @@
+       "displayName": "Online only",
+       "name": "bm01",
+       "options": {
+    -    "targetVisualNames": [],
+    -    "applyToAllVisuals": true
+    +    "targetVisualNames": []
+       },
+       "explorationState": {
+         "version": "1.3",
+    @@ -13,7 +12,7 @@
+             {
+               "name": "bf1",
+               "type": "Categorical",
+    -          "howCreated": "1",
+    +          "howCreated": 1,
+               "expression": {
+                 "Column": {
+                   "Expression": {
+    ERROR    BMK001  Brewbar.Report/definition/bookmarks/bm01.bookmark.json: options.applyToAllVisuals is not an allowed bookmark option; the service rejects the whole report on import
+    ERROR    BMK002  Brewbar.Report/definition/bookmarks/bm01.bookmark.json: howCreated is the string '1'; it must be a JSON integer
+
+    Checked 1 report(s): 2 error(s), 0 warning(s).
+
+Then apply it. The run checks again from disk, and its exit code comes
+from that re-check:
+
+::
+
+    pbi-plot-styler check Brewbar.Report --fix
+
+::
+
+    fixed    Brewbar.Report/definition/bookmarks/bm01.bookmark.json: removed options.applyToAllVisuals
+    fixed    Brewbar.Report/definition/bookmarks/bm01.bookmark.json: converted 1 string integer(s)
+
+    Checked 1 report(s): 0 error(s), 0 warning(s).
 
 ``--fix`` edits the bookmark text surgically and never re-serializes
 the file, so the change reviews as a one-line diff. Each edit is proven
@@ -1041,7 +1349,7 @@ baseline. Rerun with ``--update-baseline`` after healing findings to
 shrink it.
 
 ``FPM001``'s location carries the slot as well as the two field
-parameters that claim it — ``<file>::<role>:<earlier>|<later>#slotN`` —
+parameters that claim it (``<file>::<role>:<earlier>|<later>#slotN``),
 so each overlapping slot is a finding of its own, and the baseline
 holds an entry for each. A baseline recorded before the slot became
 part of the location needs ``--update-baseline`` for those entries.
@@ -1050,6 +1358,51 @@ part of the location needs ``--update-baseline`` for those entries.
 rewrites only the entries of that scope; the entries of other rules and
 other reports are kept. ``ABK000`` is never written to a baseline: it
 means the suite checked nothing.
+
+On the same ``Brewbar.Report`` copy as in `Fixes`_, before the fix,
+recording the baseline prints the findings and then:
+
+::
+
+    Wrote 2 finding(s) to check-baseline.json.
+
+The file lists each accepted finding by id and location:
+
+::
+
+    {
+      "version": 1,
+      "findings": [
+        {
+          "id": "BMK001",
+          "location": "Brewbar.Report/definition/bookmarks/bm01.bookmark.json::options.applyToAllVisuals"
+        },
+        {
+          "id": "BMK002",
+          "location": "Brewbar.Report/definition/bookmarks/bm01.bookmark.json::explorationState.filters.byExpr.howCreated"
+        }
+      ]
+    }
+
+A run with the baseline then passes:
+
+::
+
+    pbi-plot-styler check Brewbar.Report --baseline check-baseline.json
+
+::
+
+    Checked 1 report(s): 0 error(s), 0 warning(s), 2 accepted by the baseline, 0 healed.
+
+After ``--fix``, the same command lists the healed entries, one line per
+id:
+
+::
+
+    BMK001: 1 accepted finding(s) no longer occur — re-capture the baseline (pbi-plot-styler check --update-baseline) to lock it in: ['Brewbar.Report/definition/bookmarks/bm01.bookmark.json::options.applyToAllVisuals']
+    BMK002: 1 accepted finding(s) no longer occur — re-capture the baseline (pbi-plot-styler check --update-baseline) to lock it in: ['Brewbar.Report/definition/bookmarks/bm01.bookmark.json::explorationState.filters.byExpr.howCreated']
+
+    Checked 1 report(s): 0 error(s), 0 warning(s), 0 accepted by the baseline, 2 healed.
 
 JSON output
 ~~~~~~~~~~~
@@ -1060,8 +1413,38 @@ slugs the run used), ``reports``, ``findings`` (each with ``id``,
 ``fixable`` and ``baselined``), ``checked`` (what each rule judged),
 ``healed``, ``fixed``, ``planned`` (what ``--fix --dry-run`` would
 write), ``refused``, ``skipped``, ``notes``, ``summary`` (``errors``,
-``warnings``, ``new``, ``baselined``, ``healed``) and ``exit_code``. A
-``--summary`` run adds a ``compliance`` object.
+``warnings``, ``new``, ``baselined``, ``healed``) and ``exit_code``.
+
+A ``--summary`` run changes two things:
+
+- each finding also carries ``fix``, the one-line remediation hint the
+  text report prints after ``Fix``;
+- a ``compliance`` object follows ``exit_code``, with
+  ``total_rules``, ``compliant_rules``, ``compliance_percentage``,
+  ``critical_violations``, ``warning_violations``, ``info_violations``,
+  ``overall_compliance`` and ``rules``. Each entry of ``rules`` has
+  ``rule`` (the slug), ``title``, ``number``, ``report_name``,
+  ``checked``, ``passed``, ``compliant``, ``errors``, ``warnings`` and
+  ``findings``; each of those findings has ``id``, ``subject``,
+  ``severity``, ``type``, ``description``, ``component`` and ``fix``.
+
+In a summary run, ``findings`` and ``summary`` hold only the ids the
+compliance rows count (see `Compliance summary`_). For example, on the
+``examples/coffee-roastery`` report, ``check Roastery.Report --summary
+--json`` lists one finding, ``THM003``, with ``"fix": "Define
+customTheme to avoid hardcoded color values"``, and its ``compliance``
+object starts:
+
+::
+
+    "compliance": {
+      "total_rules": 4,
+      "compliant_rules": 4,
+      "compliance_percentage": 100.0,
+      "critical_violations": 0,
+      "warning_violations": 1,
+      "info_violations": 0,
+      "overall_compliance": true,
 
 Check exit codes
 ~~~~~~~~~~~~~~~~
@@ -1073,15 +1456,23 @@ Check exit codes
      - Meaning
    * - ``0``
      - No new error findings (warnings never fail the run), or
-       ``--update-baseline`` wrote the baseline.
+       ``--update-baseline`` wrote the baseline, or a ``--summary``
+       run, or a folder that holds no ``*.Report`` folder (``nothing to
+       check``).
    * - ``1``
-     - At least one error finding that is not in the baseline.
+     - At least one error finding that is not in the baseline; after
+       ``--fix``, one left by the re-check. ``--fix --dry-run`` also
+       exits ``1`` when there is something to fix.
    * - ``2``
-     - Setup problem: missing path, no ``*.Report`` folder found, a
-       ``--report`` or ``--model-name`` filter that matched nothing,
-       missing or malformed baseline file, ``--update-baseline``
-       without ``--baseline``, ``--dry-run`` without ``--fix``, or an
-       unknown ``--rule`` slug.
+     - Setup problem: missing path, a ``--report`` or ``--model-name``
+       filter that matched nothing, missing or malformed baseline file,
+       ``--update-baseline`` without ``--baseline``, ``--dry-run``
+       without ``--fix``, an unknown ``--rule`` slug, or a rule that
+       cannot start (for example ``answer-bookmarks`` without
+       ``[answer_bookmarks] prefixes``; see :doc:`convention-rules`).
+
+``--summary`` never fails: whatever it finds, it exits ``0``. Only a
+setup problem makes it exit ``2``.
 
 colors
 ------
@@ -1181,7 +1572,12 @@ What colors prints
 Every run opens with the palette and the number of registered measures.
 A multi-series bookmark is then listed as a block, one line per series,
 with its role, its sort order and its color, and the run closes with
-the number of entries rewritten and added and the files it would change:
+the number of entries rewritten and added and the files it would change.
+From the repository's ``tests/fixtures/color-sync`` folder:
+
+::
+
+    pbi-plot-styler colors sync --report Shop.Report
 
 ::
 
@@ -1196,9 +1592,30 @@ the number of entries rewritten and added and the files it would change:
 
     (dry run -- pass --apply to write)
 
-With ``--apply`` the first word is ``wrote`` and the dry-run note is
-gone. ``reset`` closes with ``would restore <n> colour entry/entries in
-<f> file(s)`` (or ``restored`` with ``--apply``).
+The run exits ``1``. With ``--apply`` the first word is ``wrote``, the
+dry-run note is gone, and the run exits ``0``. A dry run that finds
+nothing to change prints ``would write 0 file(s): 0 colour entry/entries
+rewritten, 0 added``, no file list and no note, and exits ``0``.
+
+``reset`` prints the same two header lines, then the count and the
+files:
+
+::
+
+    pbi-plot-styler colors reset --report Shop.Report
+
+::
+
+    palette   : x-Selector 1 -> MOD(order+0, 3)+1 -> 3 slots
+    registered: 2 measures on the picker
+
+    would restore 2 colour entry/entries in 1 file(s)
+       Shop.Report/definition/pages/aa11bb22cc33dd44ee55/visuals/combo01/visual.json
+
+    (dry run -- pass --apply to write)
+
+With ``--apply`` the line reads ``restored 2 colour entry/entries in 1
+file(s)``.
 
 A visual that uses the picker but cannot carry a per-measure color
 prints an ``UNSUPPORTED:`` line; two series that share a slot print a
@@ -1221,6 +1638,10 @@ Colors exit codes
      - Invalid input: the palette or the picker cannot be read, a
        ``NAMEOF`` cannot be resolved, or no measure is registered. The
        error is printed as ``FAIL: <reason>`` and nothing is written.
+       For example, a model with no ``w-Colors`` table prints
+       ``FAIL: <model>/definition/tables/w-Colors.tmdl not found``.
+       A missing or unreadable ``--report`` folder is a usage error,
+       also exit ``2``.
 
 bookmarks
 ---------
@@ -1259,7 +1680,7 @@ Bookmarks options
      - Description
    * - ``ENTRIES``
      - file
-     - required
+     - required, except with ``--self-test``
      - The JSON list of entries.
    * - ``--report PATH``
      - directory
@@ -1302,20 +1723,62 @@ Bookmarks options
 What bookmarks prints
 ~~~~~~~~~~~~~~~~~~~~~
 
-One line per bookmark, in entry order: its absolute file path, or — with
-``--keep-ids`` — whether the id was kept or is new and the display
-name. A dry run prints ``would write <path>`` instead of the path.
-Notes (a moved matrix capture, for example) go to stderr.
+The examples in this section run from the repository's
+``tests/fixtures/bookmark-builder`` folder, which holds a report
+(``Newsletter.Report``), a ``builder.toml`` with a ``[bookmarks]``
+section, and an entries file (``newsletter_bookmarks.json``) of five
+entries.
+
+A build prints one line per bookmark, in entry order: the absolute path
+of the file it wrote, for example
+
+::
+
+    pbi-plot-styler bookmarks build newsletter_bookmarks.json --report Newsletter.Report --config builder.toml
+
+::
+
+    <absolute path>/Newsletter.Report/definition/bookmarks/b18dcb3f08c0fb08173d.bookmark.json
+
+for each of the five entries. The names are fresh on every build. A dry
+run prints ``would write <path>`` instead, and writes nothing.
+
+With ``--keep-ids``, each line says whether the id was kept or is new,
+and the display name. Run on the same report right after the build
+above:
+
+::
+
+    pbi-plot-styler bookmarks build newsletter_bookmarks.json --report Newsletter.Report --config builder.toml --keep-ids
+
+::
+
+    kept b18dcb3f08c0fb08173d Letters | 1 Overview
+    kept e42d6b3493be74d9815b Letters | 2 Reach
+    kept 6e3b3b6a5eda26f63b73 Letters | 3 Interest
+    kept ba1527bcfdab5ec58ddb Letters | 4 Response
+    kept 486f10645a1f3b6e6f91 Letters | 5 Readership
+
+A new bookmark's line starts with ``NEW`` instead of ``kept``. Notes (a
+moved matrix capture, for example) go to stderr.
 
 ``--self-test`` builds one synthetic entry from the base bookmark in
-memory, checks it and prints the report, without writing anything:
+memory, checks it and prints the report, without writing anything. It
+needs no entries file:
+
+::
+
+    pbi-plot-styler bookmarks build --report Newsletter.Report --config builder.toml --self-test
 
 ::
 
     self-test PASS
-      generated: c1b99ad493e489ad6c44
+      generated: 9c098db8853024d5872a
       measures: ['Self Test #']
       matrix projections.Rows count: 0
+
+The generated name is different on every run. With ``--legacy-layout``
+the self-test prints ``self-test PASS`` only.
 
 An invalid entry, a missing picker, chart or matrix capture, a filter or
 a base stops the run with exit ``2`` before a file is written.
@@ -1345,7 +1808,7 @@ rename-measure
 
 Renames a measure in every ``visual.json`` and ``*.bookmark.json`` of
 every ``*.Report`` folder under the model's parent folder, at any depth.
-The model side — the measure declaration and its DAX — is not edited.
+The model side (the measure declaration and its DAX) is not edited.
 
 Rewritten (case-insensitively): the ``Measure`` bindings, the
 ``queryRef`` / ``metadata`` strings ending in the name, the
@@ -1391,7 +1854,12 @@ Rename-measure options
      - off
      - Count the references; write nothing.
 
-The dry-run count equals the number of rewrites a real run makes:
+The dry-run count equals the number of rewrites a real run makes. From
+the repository's ``examples/coffee-roastery`` folder:
+
+::
+
+    pbi-plot-styler rename-measure Revenue "Total Revenue" --model Roastery.SemanticModel --dry-run
 
 ::
 
@@ -1399,6 +1867,10 @@ The dry-run count equals the number of rewrites a real run makes:
 
 A real run prints one line per file it rewrote, with the number of
 references in it, and the total:
+
+::
+
+    pbi-plot-styler rename-measure Revenue "Total Revenue" --model Roastery.SemanticModel
 
 ::
 
@@ -1454,7 +1926,12 @@ Rename-label options
 The run prints one line per pair, the count right-aligned, then a blank
 line, then ``DRY RUN`` or ``APPLIED`` with the number of files and the
 files themselves, in visiting order (the model's selector tables first,
-then each report's visuals, bookmarks and page files):
+then each report's visuals, bookmarks and page files). From the
+repository's ``examples/coffee-roastery`` folder, before any rename:
+
+::
+
+    pbi-plot-styler rename-label . --pair "Revenue" "Total Revenue"
 
 ::
 
