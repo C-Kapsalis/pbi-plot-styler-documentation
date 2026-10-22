@@ -7,7 +7,7 @@
 project = 'pbi-plot-styler'
 copyright = '2026, Christoforos Kapsalis'
 author = 'Christoforos Kapsalis'
-release = '1.2.0'
+release = '1.2.1'
 
 extensions = [
     'sphinx.ext.intersphinx',
@@ -27,6 +27,7 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 spelling_lang = 'en_US'
+spelling_word_list_filename = 'spelling_wordlist.txt'
 
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
